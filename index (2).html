@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Evalúa la calidad de tus prompts para IA y descubre tu nivel de prompting"/>
+  <meta property="og:title" content="¿Qué tan buenos son tus prompts?"/>
+  <meta property="og:description" content="Descubre tu nivel de prompting en menos de 2 minutos. Evaluación basada en la Fórmula del Prompt."/>
+  <title>Evaluador de Prompts | Agility Changes</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>"/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#07070e;color:#e8e4de;font-family:'Outfit',sans-serif;min-height:100vh}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+    .fu{animation:fadeUp .55s cubic-bezier(.22,1,.36,1) forwards;opacity:0}
+    .d1{animation-delay:.1s}.d2{animation-delay:.18s}.d3{animation-delay:.26s}.d4{animation-delay:.34s}.d5{animation-delay:.42s}.d6{animation-delay:.5s}
+    .card{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:14px;transition:all .25s}
+    .card:hover{background:rgba(255,255,255,.04)}
+    .cardx:hover{border-color:rgba(240,168,48,.25);transform:translateY(-2px);cursor:pointer}
+    .btn{border:none;padding:14px 32px;border-radius:11px;font-weight:700;font-size:15px;cursor:pointer;transition:all .2s;font-family:inherit}
+    .btn-p{background:linear-gradient(135deg,#e8a020,#f0b840);color:#0a0a0f}
+    .btn-p:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(232,160,32,.2)}
+    .btn-p:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+    .btn-s{background:rgba(255,255,255,.06);color:#e8e4de;border:1px solid rgba(255,255,255,.1);padding:10px 20px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit;transition:all .2s}
+    .btn-s:hover{background:rgba(255,255,255,.1)}
+    .inp{width:100%;padding:12px 16px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:9px;color:#e8e4de;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+    .inp:focus{border-color:rgba(232,160,32,.45)}
+    .inp::placeholder{color:rgba(255,255,255,.18)}
+    select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23666' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+    select.inp option{background:#151520;color:#e8e4de}
+    textarea.inp{resize:vertical;min-height:150px;line-height:1.6}
+    .dot{width:10px;height:10px;border-radius:50%;background:#e8a020;animation:pulse 1.2s ease infinite}
+    .lh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .lt{font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;letter-spacing:.4px}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.9/babel.min.js"></script>
+  <script type="text/babel">
+    const { useState, useRef } = React;
+
+    // ═══════════════════════════════════════════
+    // CONFIGURACIÓN
+    // ═══════════════════════════════════════════
+    const CONFIG = {
+      googleSheetsWebhook: "https://script.google.com/macros/s/AKfycbzke8gW-krmtc_p_a3N7EH2Ya8ZBjp6VlVDkaUE28-9uiwUjWAWlB5WFbHPdW5sYuPp/exec",
+      certName: "AI Powered Product Development",
+      whatsappUrl: "https://wa.me/14059346556?text=Quiero%20informaci%C3%B3n%20de%20PDM",
+      brand: "Agility Changes"
+    };
+
+    const SCENARIOS = [
+      { id: "marketing", emoji: "📱", title: "Marketing Digital", sub: "Contenido para redes", desc: "Necesitas crear una campaña de contenido para redes sociales de tu marca o producto. Escribe el prompt que le darías a una IA.", hint: "Piensa en: plataforma, tipo de contenido, audiencia, tono..." },
+      { id: "analysis", emoji: "📊", title: "Análisis de Datos", sub: "Insights de negocio", desc: "Tu jefe te pide analizar los datos de ventas del último trimestre para tomar decisiones. Escribe tu prompt.", hint: "Piensa en: qué datos, qué métricas, en qué formato lo necesitas..." },
+      { id: "product", emoji: "🚀", title: "Desarrollo de Producto", sub: "Definición de MVP", desc: "Estás lanzando un producto digital y necesitas definir las funcionalidades clave del MVP. Escribe tu prompt.", hint: "Piensa en: el problema, el usuario, restricciones, resultado esperado..." },
+      { id: "strategy", emoji: "🎯", title: "Estrategia de Negocio", sub: "Decisiones clave", desc: "Debes decidir si expandir tu negocio a un nuevo mercado. Escribe el prompt para evaluar esta decisión.", hint: "Piensa en: contexto actual, factores relevantes, tipo de análisis..." }
+    ];
+
+    const COUNTRIES = ["Argentina","Bolivia","Brasil","Chile","Colombia","Costa Rica","Ecuador","El Salvador","España","Guatemala","Honduras","México","Nicaragua","Panamá","Paraguay","Perú","Puerto Rico","Rep. Dominicana","Uruguay","Venezuela","Estados Unidos","Otro"];
+
+    const STRUCTURE_ITEMS = [
+      { key: "contexto", label: "Contexto general", icon: "🌍", example: '"Estoy preparando una presentación para el comité directivo..."' },
+      { key: "instruccion", label: "Instrucción específica", icon: "🎯", example: '"Genera un análisis comparativo..."' },
+      { key: "detalles", label: "Detalles y características", icon: "🔍", example: '"Incluye 5 competidores, datos de los últimos 3 años..."' },
+      { key: "tono", label: "Tono y estilo", icon: "🎨", example: '"Usa un tono profesional pero accesible, sin tecnicismos..."' },
+      { key: "proposito", label: "Propósito o resultado", icon: "💡", example: '"El objetivo es convencer al comité de invertir en..."' },
+      { key: "publico", label: "Público objetivo", icon: "👥", example: '"Dirigido a ejecutivos no técnicos de 40-55 años..."' }
+    ];
+
+    // ═══════════════════════════════════════════
+    // EVALUACIÓN
+    // ═══════════════════════════════════════════
+    const EVAL_SYSTEM = `Eres un evaluador educativo de prompts. Evalúas con un modelo de 3 capas basado en la "Fórmula del Prompt".
+
+CAPA 1 — ESTRUCTURA DEL PROMPT (0-6 puntos)
+Cada componente vale 1 punto (presente=1, ausente=0):
+- contexto: ¿Incluye situación, escenario o background?
+- instruccion: ¿Tiene una instrucción clara de qué hacer?
+- detalles: ¿Incluye datos específicos: números, nombres, categorías, restricciones concretas?
+- tono: ¿Define cómo debe sonar la respuesta?
+- proposito: ¿Indica para qué necesita el resultado o qué espera lograr?
+- publico: ¿Menciona a quién va dirigido?
+
+CAPA 2 — COHERENCIA LÓGICA (0-2 puntos)
+- sin_contradicciones (0-1): ¿No pide cosas opuestas al mismo tiempo? Si no hay contradicciones = 1.
+- sin_ambiguedades (0-1): ¿Queda claro qué se pide? Si la instrucción es inequívoca = 1.
+
+CAPA 3 — TÉCNICAS AVANZADAS (0-2 puntos bonus)
+1 técnica = +1pt, 2 o más = +2pts:
+- role_prompting: Asigna un rol experto ("Actúa como...", "Eres un...")
+- chain_of_thought: Pide razonamiento paso a paso
+- few_shot: Incluye ejemplos de referencia
+- framework: Usa estructura RTF, TAO o CARE
+- output_estructurado: Define formato específico de salida
+
+PUNTAJE TOTAL = Capa1 + Capa2 + Capa3 (máximo 10)
+NIVELES: 1-3: Principiante | 4-5: Intermedio | 6-7: Avanzado | 8-10: Experto
+
+Responde SOLO JSON válido sin backticks:
+{"structure":{"contexto":<0|1>,"instruccion":<0|1>,"detalles":<0|1>,"tono":<0|1>,"proposito":<0|1>,"publico":<0|1>},"quality":{"sin_contradicciones":<0|1>,"sin_ambiguedades":<0|1>},"advanced":{"techniques":["<técnicas detectadas>"],"points":<0|1|2>},"total":<1-10>,"level":"<Principiante|Intermedio|Avanzado|Experto>","structure_feedback":{"contexto":"<feedback>","instruccion":"<feedback>","detalles":"<feedback>","tono":"<feedback>","proposito":"<feedback>","publico":"<feedback>"},"quality_feedback":{"sin_contradicciones":"<feedback>","sin_ambiguedades":"<feedback>"},"tip":"<Consejo educativo personalizado. Máximo 3 oraciones.>","better":"<Versión mejorada del prompt.>"}`;
+
+    async function evaluateWithAPI(prompt, scenario) {
+      try {
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1200,
+            messages: [{ role: "user", content: EVAL_SYSTEM + '\n\n---\nEscenario: "' + scenario.title + ": " + scenario.desc + '"\n\nPrompt del usuario:\n"' + prompt + '"\n\nEvalúa y responde SOLO JSON.' }]
+          })
+        });
+        const data = await res.json();
+        const text = (data.content || []).map(function(i) { return i.text || ""; }).join("");
+        return JSON.parse(text.replace(/```json|```/g, "").trim());
+      } catch (e) {
+        return fallbackEval(prompt);
+      }
+    }
+
+    function fallbackEval(prompt) {
+      var p = prompt.toLowerCase();
+      var s = {
+        contexto: /estoy|trabajo|necesito|actualmente|empresa|equipo|situaci|proyecto|preparando|creando/i.test(p) ? 1 : 0,
+        instruccion: /genera|crea|analiza|explica|diseña|escribe|desarrolla|elabora|propón|redacta|haz/i.test(p) ? 1 : 0,
+        detalles: /\d|específic|máximo|mínimo|sector|tipo|incluy|característica|requisi/i.test(p) ? 1 : 0,
+        tono: /tono|estilo|profesional|amigable|formal|informal|cercano|técnico|sencillo/i.test(p) ? 1 : 0,
+        proposito: /para que|objetivo|meta|lograr|conseguir|con el fin|propósito|resultado|finalidad/i.test(p) ? 1 : 0,
+        publico: /dirigido|audiencia|público|para directivos|para ejecutivos|equipo de|clientes|usuarios|lectores/i.test(p) ? 1 : 0
+      };
+      var structTotal = Object.values(s).reduce(function(a, b) { return a + b; }, 0);
+      var sinContra = !/pequeño.*gigante|lento.*veloz|frío.*caliente|corto.*detallado|formal.*informal|simple.*complejo|breve.*extenso/i.test(p) ? 1 : 0;
+      var sinAmbi = (prompt.length > 30 && /genera|crea|analiza|explica|diseña|escribe|desarrolla|elabora|haz/i.test(p)) ? 1 : 0;
+      var qualTotal = sinContra + sinAmbi;
+      var techs = [];
+      if (/actúa como|eres un|compórtate|rol de|imagina que eres/i.test(p)) techs.push("role_prompting");
+      if (/paso a paso|primero.*luego|analiza.*después|step by step|piensa antes/i.test(p)) techs.push("chain_of_thought");
+      if (/ejemplo|como este|similar a|referencia|muestra/i.test(p)) techs.push("few_shot");
+      if (/formato|tabla|lista|sección|json|csv|bullet|reporte|estructura/i.test(p)) techs.push("output_estructurado");
+      var advPts = Math.min(techs.length >= 2 ? 2 : techs.length, 2);
+      var total = Math.max(1, Math.min(10, structTotal + qualTotal + advPts));
+      var level = total <= 3 ? "Principiante" : total <= 5 ? "Intermedio" : total <= 7 ? "Avanzado" : "Experto";
+      var sfTexts = {
+        contexto: ["Incluyes contexto sobre tu situación", "No encontrado — describe tu situación o escenario"],
+        instruccion: ["Tienes una instrucción clara", "No encontrado — indica qué quieres que haga la IA"],
+        detalles: ["Incluyes detalles específicos", "No encontrado — agrega datos concretos (números, nombres, categorías)"],
+        tono: ["Defines el tono o estilo", "No encontrado — indica cómo debe sonar la respuesta"],
+        proposito: ["Indicas el propósito", "No encontrado — explica para qué necesitas el resultado"],
+        publico: ["Mencionas al público objetivo", "No encontrado — aclara a quién va dirigido"]
+      };
+      var sf = {};
+      for (var k of Object.keys(s)) sf[k] = sfTexts[k][s[k] ? 0 : 1];
+      var tip = total <= 3
+        ? "Tu prompt tiene potencial. La clave está en incluir los 6 componentes de la fórmula: contexto + instrucción + detalles + tono + propósito + público."
+        : total <= 5
+        ? "Vas por buen camino. Revisa los componentes marcados con ✗ e inclúyelos. Definir el tono y el público hace que las respuestas sean mucho más precisas."
+        : total <= 7
+        ? "Tienes una base sólida. Para el siguiente nivel, prueba asignarle un rol experto a la IA ('Actúa como...') y pedirle que razone paso a paso."
+        : "Dominas la estructura del prompt. Sigue experimentando con Few-Shot (incluir ejemplos) y Prompt Chaining (dividir tareas complejas en pasos encadenados).";
+      return { structure: s, quality: { sin_contradicciones: sinContra, sin_ambiguedades: sinAmbi }, advanced: { techniques: techs, points: advPts }, total: total, level: level, structure_feedback: sf, quality_feedback: { sin_contradicciones: sinContra ? "No se detectaron contradicciones" : "Tu prompt tiene instrucciones que se contradicen", sin_ambiguedades: sinAmbi ? "Tu instrucción es clara e inequívoca" : "Algunas partes podrían interpretarse de formas diferentes" }, tip: tip, better: "" };
+    }
+
+    async function saveLead(data) {
+      if (!CONFIG.googleSheetsWebhook) return;
+      try {
+        await fetch(CONFIG.googleSheetsWebhook, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+      } catch (e) { console.error("Error guardando lead:", e); }
+    }
+
+    // ═══════════════════════════════════════════
+    // COMPONENTES
+    // ═══════════════════════════════════════════
+    function ScoreRing({ score, animate }) {
+      var r = 72, c = 2 * Math.PI * r, offset = c - (score / 10) * c;
+      var color = score <= 3 ? "#ef4444" : score <= 5 ? "#f59e0b" : score <= 7 ? "#3b82f6" : "#10b981";
+      return (
+        <div style={{ position: "relative", width: 184, height: 184, margin: "0 auto" }}>
+          <svg width="184" height="184" viewBox="0 0 184 184">
+            <circle cx="92" cy="92" r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7"/>
+            <circle cx="92" cy="92" r={r} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round"
+              strokeDasharray={c} strokeDashoffset={animate ? offset : c}
+              transform="rotate(-90 92 92)"
+              style={{ transition: "stroke-dashoffset 1.5s cubic-bezier(0.4,0,0.2,1)" }}/>
+          </svg>
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 52, fontWeight: 800, color: color, lineHeight: 1 }}>{score}</span>
+            <span style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>de 10</span>
+          </div>
+        </div>
+      );
+    }
+
+    function StructureCheck({ item, present, feedback }) {
+      return (
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13, fontWeight: 700,
+            background: present ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.08)",
+            border: "1px solid " + (present ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.15)"),
+            color: present ? "#34d399" : "#f87171" }}>
+            {present ? "✓" : "✗"}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13 }}>{item.icon}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: present ? "#e8e4de" : "rgba(255,255,255,.45)" }}>{item.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
+                background: present ? "rgba(16,185,129,.1)" : "rgba(239,68,68,.06)",
+                color: present ? "#34d399" : "#f87171" }}>
+                {present ? "+1 pto" : "0 pts"}
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,.35)", margin: 0, lineHeight: 1.45 }}>{feedback}</p>
+            {!present && <p style={{ fontSize: 12, color: "rgba(255,255,255,.22)", margin: "4px 0 0", fontStyle: "italic" }}>Ej: {item.example}</p>}
+          </div>
+        </div>
+      );
+    }
+
+    function QualityRow({ label, score, feedback }) {
+      var color = score ? "#10b981" : "#ef4444";
+      return (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: color }}>{score}/1</span>
+          </div>
+          <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,.05)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: score ? "100%" : "12%", background: color, borderRadius: 3, transition: "width 1s ease" }}/>
+          </div>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,.3)", marginTop: 4 }}>{feedback}</p>
+        </div>
+      );
+    }
+
+    // ═══════════════════════════════════════════
+    // APP
+    // ═══════════════════════════════════════════
+    function App() {
+      const [step, setStep] = useState("welcome");
+      const [scenario, setScenario] = useState(null);
+      const [prompt, setPrompt] = useState("");
+      const [form, setForm] = useState({ nombre: "", correo: "", whatsapp: "", pais: "", cargo: "" });
+      const [result, setResult] = useState(null);
+      const [animScore, setAnimScore] = useState(false);
+      const evalRef = useRef(null);
+
+      var levelColor = { Principiante: "#ef4444", Intermedio: "#f59e0b", Avanzado: "#3b82f6", Experto: "#10b981" };
+      var techLabels = { role_prompting: "Role Prompting", chain_of_thought: "Chain-of-Thought", few_shot: "Few-Shot", framework: "Framework (RTF/TAO/CARE)", output_estructurado: "Output Estructurado" };
+      var structTotal = result ? Object.values(result.structure).reduce(function(a, b) { return a + b; }, 0) : 0;
+      var qualTotal = result ? (result.quality.sin_contradicciones || 0) + (result.quality.sin_ambiguedades || 0) : 0;
+
+      function submitPrompt() {
+        if (prompt.trim().length < 15) return;
+        evalRef.current = evaluateWithAPI(prompt, scenario);
+        setStep("form");
+      }
+
+      async function submitForm() {
+        if (!form.nombre || !form.correo || !form.pais || !form.cargo) return;
+        setStep("loading");
+        try {
+          var r = await evalRef.current;
+          setResult(r);
+          await saveLead({
+            fecha: new Date().toISOString(),
+            nombre: form.nombre,
+            correo: form.correo,
+            whatsapp: form.whatsapp.replace(/^\+/, ""),
+            pais: form.pais,
+            cargo: form.cargo,
+            escenario: scenario.title,
+            puntaje: r.total,
+            nivel: r.level,
+            prompt: prompt
+          });
+        } catch (e) {
+          var fb = fallbackEval(prompt);
+          setResult(fb);
+        }
+        setTimeout(function() { setStep("results"); setTimeout(function() { setAnimScore(true); }, 300); }, 1400);
+      }
+
+      function restart() {
+        setStep("welcome"); setScenario(null); setPrompt("");
+        setForm({ nombre: "", correo: "", whatsapp: "", pais: "", cargo: "" });
+        setResult(null); setAnimScore(false);
+      }
+
+      return (
+        <div style={{ maxWidth: 700, margin: "0 auto", padding: "36px 20px" }}>
+
+          {step === "welcome" && (
+            <div style={{ textAlign: "center", paddingTop: 56 }}>
+              <div className="fu" style={{ fontSize: 44, marginBottom: 14 }}>🧠</div>
+              <h1 className="fu d1" style={{ fontSize: "clamp(26px,5vw,40px)", fontWeight: 800, lineHeight: 1.08, marginBottom: 14 }}>
+                ¿Qué tan buenos son<br/>tus <span style={{ color: "#e8a020" }}>prompts</span>?
+              </h1>
+              <p className="fu d2" style={{ fontSize: 15, color: "rgba(255,255,255,.42)", maxWidth: 440, margin: "0 auto 10px", lineHeight: 1.6 }}>
+                Descubre tu nivel de prompting en menos de 2 minutos.<br/>Evaluación basada en la <strong style={{ color: "rgba(255,255,255,.55)" }}>Fórmula del Prompt</strong>.
+              </p>
+              <p className="fu d3" style={{ fontSize: 12, color: "rgba(255,255,255,.2)", marginBottom: 32 }}>
+                Puntaje transparente · Feedback educativo · Resultados al instante
+              </p>
+              <div className="fu d4">
+                <button className="btn btn-p" onClick={function() { setStep("scenario"); }} style={{ fontSize: 16, padding: "16px 40px" }}>
+                  Evaluar mi prompt →
+                </button>
+              </div>
+              <p className="fu d5" style={{ fontSize: 12, color: "rgba(255,255,255,.18)", marginTop: 28 }}>
+                Una experiencia de <strong style={{ color: "rgba(255,255,255,.3)" }}>{CONFIG.brand}</strong>
+              </p>
+            </div>
+          )}
+
+          {step === "scenario" && (
+            <div>
+              <button className="btn-s fu" onClick={function() { setStep("welcome"); }}>← Volver</button>
+              <h2 className="fu d1" style={{ fontSize: 24, fontWeight: 700, margin: "20px 0 6px" }}>Elige un escenario</h2>
+              <p className="fu d2" style={{ color: "rgba(255,255,255,.38)", marginBottom: 22, fontSize: 14 }}>Selecciona la situación para la que escribirás tu prompt</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 12 }}>
+                {SCENARIOS.map(function(s, i) {
+                  return (
+                    <div key={s.id} className={"card cardx fu d" + (i + 1)} onClick={function() { setScenario(s); setStep("write"); }}
+                      style={{ padding: "20px 18px" }}>
+                      <div style={{ fontSize: 26, marginBottom: 8 }}>{s.emoji}</div>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{s.title}</h3>
+                      <p style={{ fontSize: 13, color: "rgba(255,255,255,.32)" }}>{s.sub}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {step === "write" && scenario && (
+            <div>
+              <button className="btn-s fu" onClick={function() { setStep("scenario"); }}>← Cambiar escenario</button>
+              <div className="fu d1" style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 16px" }}>
+                <span style={{ fontSize: 30 }}>{scenario.emoji}</span>
+                <div>
+                  <h2 style={{ fontSize: 20, fontWeight: 700 }}>{scenario.title}</h2>
+                  <p style={{ fontSize: 13, color: "rgba(255,255,255,.32)" }}>{scenario.sub}</p>
+                </div>
+              </div>
+              <div className="card fu d2" style={{ padding: 18, marginBottom: 18 }}>
+                <p style={{ fontSize: 14, lineHeight: 1.6, color: "rgba(255,255,255,.55)" }}>{scenario.desc}</p>
+              </div>
+              <div className="fu d3">
+                <textarea className="inp" placeholder="Escribe tu prompt aquí..." value={prompt}
+                  onChange={function(e) { setPrompt(e.target.value); }} style={{ minHeight: 170, fontSize: 15, marginBottom: 8 }}/>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                  <span style={{ fontSize: 12, color: prompt.length < 15 ? "#ef4444" : "rgba(255,255,255,.22)" }}>
+                    {prompt.length < 15 ? "Mínimo 15 caracteres (" + prompt.length + "/15)" : prompt.length + " caracteres"}
+                  </span>
+                </div>
+                <div className="card" style={{ padding: "10px 14px", marginBottom: 16, borderColor: "rgba(232,160,32,.12)", background: "rgba(232,160,32,.03)" }}>
+                  <p style={{ fontSize: 12, color: "#e8a020", lineHeight: 1.5 }}>💡 {scenario.hint}</p>
+                </div>
+                <button className="btn btn-p" onClick={submitPrompt} disabled={prompt.trim().length < 15} style={{ width: "100%" }}>
+                  Evaluar mi prompt →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === "form" && (
+            <div>
+              <div className="fu" style={{ textAlign: "center", marginBottom: 24 }}>
+                <div style={{ fontSize: 34, marginBottom: 10 }}>✨</div>
+                <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 5 }}>Tu evaluación está lista</h2>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,.38)" }}>Completa tus datos para ver tu resultado detallado</p>
+              </div>
+              <div className="card fu d1" style={{ padding: 24 }}>
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 5 }}>Nombre completo *</label>
+                    <input className="inp" placeholder="Tu nombre" value={form.nombre} onChange={function(e) { setForm(Object.assign({}, form, { nombre: e.target.value })); }}/>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 5 }}>Correo electrónico *</label>
+                      <input className="inp" type="email" placeholder="tu@email.com" value={form.correo} onChange={function(e) { setForm(Object.assign({}, form, { correo: e.target.value })); }}/>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 5 }}>WhatsApp</label>
+                      <input className="inp" placeholder="57 300 000 0000" value={form.whatsapp} onChange={function(e) { setForm(Object.assign({}, form, { whatsapp: e.target.value })); }}/>
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 5 }}>País *</label>
+                      <select className="inp" value={form.pais} onChange={function(e) { setForm(Object.assign({}, form, { pais: e.target.value })); }}>
+                        <option value="">Selecciona</option>
+                        {COUNTRIES.map(function(c) { return <option key={c} value={c}>{c}</option>; })}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 5 }}>Cargo *</label>
+                      <input className="inp" placeholder="Tu cargo actual" value={form.cargo} onChange={function(e) { setForm(Object.assign({}, form, { cargo: e.target.value })); }}/>
+                    </div>
+                  </div>
+                </div>
+                <button className="btn btn-p" onClick={submitForm} disabled={!form.nombre || !form.correo || !form.pais || !form.cargo}
+                  style={{ width: "100%", marginTop: 20 }}>
+                  Ver mi resultado →
+                </button>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,.18)", textAlign: "center", marginTop: 10 }}>Tus datos serán tratados con confidencialidad</p>
+              </div>
+            </div>
+          )}
+
+          {step === "loading" && (
+            <div style={{ textAlign: "center", paddingTop: 90 }}>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 22 }}>
+                <div className="dot" style={{ animationDelay: "0s" }}></div>
+                <div className="dot" style={{ animationDelay: ".2s" }}></div>
+                <div className="dot" style={{ animationDelay: ".4s" }}></div>
+              </div>
+              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 6 }}>Analizando tu prompt...</h2>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,.3)" }}>Evaluando estructura, coherencia y técnicas avanzadas</p>
+            </div>
+          )}
+
+          {step === "results" && result && (
+            <div>
+              <div className="fu" style={{ textAlign: "center", marginBottom: 28 }}>
+                <ScoreRing score={result.total} animate={animScore}/>
+                <div style={{ marginTop: 14 }}>
+                  <span style={{ display: "inline-block", fontSize: 13, fontWeight: 700, padding: "5px 16px", borderRadius: 8,
+                    background: levelColor[result.level] + "18", color: levelColor[result.level] }}>
+                    {result.level}
+                  </span>
+                </div>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,.4)", marginTop: 12, maxWidth: 440, margin: "12px auto 0", lineHeight: 1.5 }}>
+                  Tu prompt incluye <strong style={{ color: "#e8e4de" }}>{structTotal} de 6</strong> componentes de la fórmula
+                  {structTotal < 6 && <span> — {6 - structTotal === 1 ? "te falta 1" : "te faltan " + (6 - structTotal)} para completarla</span>}
+                  {structTotal === 6 && <span> — estructura completa</span>}
+                </p>
+              </div>
+
+              <div className="fu d1" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 18 }}>
+                {[
+                  { val: structTotal, max: 6, label: "Estructura", c: structTotal >= 4 ? "#10b981" : structTotal >= 2 ? "#f59e0b" : "#ef4444" },
+                  { val: qualTotal, max: 2, label: "Coherencia", c: qualTotal === 2 ? "#10b981" : qualTotal === 1 ? "#f59e0b" : "#ef4444" },
+                  { val: result.advanced.points, max: 2, label: "Bonus", c: result.advanced.points >= 2 ? "#10b981" : result.advanced.points === 1 ? "#f59e0b" : "rgba(255,255,255,.25)" }
+                ].map(function(item) {
+                  return (
+                    <div key={item.label} className="card" style={{ padding: "14px 12px", textAlign: "center" }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: item.c }}>{item.val}/{item.max}</div>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,.3)", marginTop: 2 }}>{item.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="card fu d2" style={{ padding: "20px 18px", marginBottom: 14 }}>
+                <div className="lh">
+                  <h3 style={{ fontSize: 15, fontWeight: 700 }}>📋 Estructura del prompt</h3>
+                  <span className="lt" style={{ background: "rgba(16,185,129,.1)", color: "#34d399" }}>{structTotal}/6 pts</span>
+                </div>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,.28)", marginBottom: 10 }}>
+                  Cada componente de la <strong style={{ color: "rgba(255,255,255,.42)" }}>Fórmula del Prompt</strong> vale 1 punto
+                </p>
+                {STRUCTURE_ITEMS.map(function(item) {
+                  return <StructureCheck key={item.key} item={item} present={result.structure[item.key] === 1}
+                    feedback={result.structure_feedback ? result.structure_feedback[item.key] : (result.structure[item.key] ? "Presente" : "No detectado")}/>;
+                })}
+              </div>
+
+              <div className="card fu d3" style={{ padding: "20px 18px", marginBottom: 14 }}>
+                <div className="lh">
+                  <h3 style={{ fontSize: 15, fontWeight: 700 }}>🧩 Coherencia lógica</h3>
+                  <span className="lt" style={{ background: "rgba(245,158,11,.1)", color: "#fbbf24" }}>{qualTotal}/2 pts</span>
+                </div>
+                <QualityRow label="Sin contradicciones" score={result.quality.sin_contradicciones}
+                  feedback={result.quality_feedback ? result.quality_feedback.sin_contradicciones : ""}/>
+                <QualityRow label="Sin ambigüedades" score={result.quality.sin_ambiguedades}
+                  feedback={result.quality_feedback ? result.quality_feedback.sin_ambiguedades : ""}/>
+              </div>
+
+              <div className="card fu d4" style={{ padding: "20px 18px", marginBottom: 14 }}>
+                <div className="lh">
+                  <h3 style={{ fontSize: 15, fontWeight: 700 }}>⚡ Técnicas avanzadas</h3>
+                  <span className="lt" style={{ background: "rgba(139,92,246,.1)", color: "#a78bfa" }}>+{result.advanced.points} bonus</span>
+                </div>
+                {result.advanced.techniques && result.advanced.techniques.length > 0 && result.advanced.techniques[0] !== "" ? (
+                  <div>
+                    <p style={{ fontSize: 12, color: "rgba(255,255,255,.28)", marginBottom: 10 }}>Técnicas detectadas:</p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {result.advanced.techniques.map(function(t, i) {
+                        return (
+                          <span key={i} style={{ fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 6,
+                            background: "rgba(139,92,246,.1)", color: "#c4b5fd" }}>
+                            ⚡ {techLabels[t] || t}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: "14px 16px", background: "rgba(255,255,255,.02)", borderRadius: 8, border: "1px dashed rgba(255,255,255,.06)" }}>
+                    <p style={{ fontSize: 13, color: "rgba(255,255,255,.3)", lineHeight: 1.55 }}>
+                      No se detectaron técnicas avanzadas. Prueba asignar un <strong style={{ color: "rgba(255,255,255,.45)" }}>rol experto</strong> ("Actúa como..."), pedir razonamiento <strong style={{ color: "rgba(255,255,255,.45)" }}>paso a paso</strong>, o definir un <strong style={{ color: "rgba(255,255,255,.45)" }}>formato de salida</strong>.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="card fu d4" style={{ padding: "18px 18px", marginBottom: 14, borderColor: "rgba(232,160,32,.15)", background: "rgba(232,160,32,.03)" }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, color: "#e8a020" }}>💡 Consejo para ti</h3>
+                <p style={{ fontSize: 14, lineHeight: 1.65, color: "rgba(255,255,255,.55)" }}>{result.tip}</p>
+              </div>
+
+              {result.better && (
+                <div className="card fu d5" style={{ padding: "18px 18px", marginBottom: 14 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>✏️ Así se vería tu prompt mejorado</h3>
+                  <div style={{ padding: 14, background: "rgba(255,255,255,.02)", borderRadius: 8, border: "1px solid rgba(255,255,255,.05)" }}>
+                    <p style={{ fontSize: 14, lineHeight: 1.65, color: "rgba(255,255,255,.5)", fontStyle: "italic" }}>{result.better}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="card fu d5" style={{ padding: "16px 18px", marginBottom: 22 }}>
+                <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: "rgba(255,255,255,.3)" }}>Tu prompt original</h3>
+                <p style={{ fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,.25)" }}>{prompt}</p>
+              </div>
+
+              <div className="card fu d6" style={{ padding: "28px 24px", borderColor: "rgba(232,160,32,.18)", background: "linear-gradient(135deg,rgba(232,160,32,.06),rgba(232,160,32,.02))" }}>
+                <div style={{ textAlign: "center", marginBottom: 20 }}>
+                  <p style={{ fontSize: 12, color: "#e8a020", fontWeight: 700, marginBottom: 10, letterSpacing: 1, textTransform: "uppercase" }}>El prompting es solo el comienzo</p>
+                  <h3 style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.3, maxWidth: 460, margin: "0 auto" }}>
+                    Desarrollar productos hoy es más efectivo con IA
+                  </h3>
+                </div>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,.5)", lineHeight: 1.7, textAlign: "center", maxWidth: 440, margin: "0 auto 6px" }}>
+                  Todo parte de la estructura del prompting — y lo que acabas de practicar es la base. Pero hay mucho más: desde definir productos con IA hasta construir MVPs con herramientas inteligentes.
+                </p>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,.55)", lineHeight: 1.7, textAlign: "center", maxWidth: 440, margin: "0 auto 22px" }}>
+                  ¿Quieres recursos, metodologías y acompañamiento para llevar tus productos al siguiente nivel?
+                </p>
+                <div style={{ textAlign: "center" }}>
+                  <a href={CONFIG.whatsappUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+                    <button className="btn btn-p" style={{ padding: "14px 36px", fontSize: 15, display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 18 }}>💬</span> Quiero saber más
+                    </button>
+                  </a>
+                </div>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,.3)", textAlign: "center", marginTop: 14 }}>
+                  Certificación <strong style={{ color: "rgba(255,255,255,.45)" }}>{CONFIG.certName}</strong>
+                </p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,.15)", textAlign: "center", marginTop: 6 }}>
+                  Powered by <strong>{CONFIG.brand}</strong>
+                </p>
+              </div>
+
+              <div style={{ textAlign: "center", marginTop: 20, paddingBottom: 40 }}>
+                <button className="btn-s" onClick={restart}>Evaluar otro prompt</button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
